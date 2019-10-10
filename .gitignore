@@ -1,0 +1,5 @@
+.git
+.settings
+.Target-Debug
+.Target-Release
+DebugInfo

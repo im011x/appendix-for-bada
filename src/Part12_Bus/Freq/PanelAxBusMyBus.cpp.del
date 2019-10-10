@@ -1,0 +1,122 @@
+/*
+ * PanelAxBusMyBus.cpp
+ *
+ *  Created on: 2012. 8. 8.
+ *      Author: benny
+ */
+
+#include "PanelAxBusMyBus.h"
+#include "FactoryListItem.h"
+
+using namespace Osp::Graphics;
+
+PanelAxBusMyBus::PanelAxBusMyBus() : __pDbBus(null), __pArr(null), __pList(null), __pActionListener(null)
+{
+}
+
+PanelAxBusMyBus::~PanelAxBusMyBus()
+{
+	if (__pArr) {
+		__pArr->RemoveAll(true);
+		delete __pArr;
+		__pArr = null;
+	}
+
+	if (__pDbBus) {
+		delete __pDbBus;
+	}
+}
+
+void PanelAxBusMyBus::init()
+{
+	if (__pArr == null) {
+		__pArr = new ArrayList();
+		__pArr->Construct();
+	}
+
+	__pDbBus = new DatabaseBus();
+	__pDbBus->GetFreqLineN(__pArr);
+}
+
+bool PanelAxBusMyBus::Initialize(Rectangle rect, Container * pContainer, Osp::Ui::IActionEventListener* pActionListener)
+{
+	this->Construct(rect);
+	pContainer->AddControl(*this);
+	__pActionListener = pActionListener;
+
+	init();
+
+	Dimension sz = this->GetSize();
+	__pList = makeListView(Rectangle(0, 0, sz.width, sz.height), this, (IListViewItemProvider *) this, (IListViewItemEventListener *) this, true);
+	__pList->SetTextOfEmptyList("등록된 내버스 정보가 없습니다.");
+
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int PanelAxBusMyBus::GetItemCount(void)
+{
+	if (__pArr == null)
+		return 0;
+
+	return __pArr->GetCount();
+}
+
+Osp::Ui::Controls::ListItemBase* PanelAxBusMyBus::CreateItem(int index, int itemWidth)
+{
+#if 0
+	String a;
+	a.Format(100, L"item %d", index + 1);
+
+	SimpleItem * pItem = new SimpleItem();
+	pItem->Construct(Dimension(itemWidth, 100), LIST_ANNEX_STYLE_DETAILED);
+	pItem->SetElement(a);
+
+	return pItem;
+#else
+	CustomItem * pItem = FactoryListItem::makeListItem_BusLine(index, itemWidth,  static_cast<BusSeoul_Line*> (__pArr->GetAt(index)), true);
+	//pItem->SetContextItem(__pContextMenu);
+	return pItem;
+#endif
+}
+
+bool PanelAxBusMyBus::DeleteItem(int index, Osp::Ui::Controls::ListItemBase* pItem, int itemWidth)
+{
+	delete pItem;
+	pItem = null;
+	return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void PanelAxBusMyBus::OnListViewContextItemStateChanged(Osp::Ui::Controls::ListView &listView, int index, int elementId, Osp::Ui::Controls::ListContextItemStatus state)
+{
+	AppLogDebug("context menu - element = %d and item = %d", elementId, index);
+
+}
+
+void PanelAxBusMyBus::OnListViewItemStateChanged(Osp::Ui::Controls::ListView &listView, int index, int elementId, Osp::Ui::Controls::ListItemStatus status)
+{
+	AppLogDebug("index = %d and status = %d", index, status);
+
+}
+
+void PanelAxBusMyBus::OnListViewItemSwept(Osp::Ui::Controls::ListView &listView, int index, Osp::Ui::Controls::SweepDirection direction)
+{
+	AppLogDebug("");
+}
+
+void PanelAxBusMyBus::OnListViewItemLongPressed(Osp::Ui::Controls::ListView &listView, int index, int elementId, bool& invokeListViewItemCallback)
+{
+	AppLogDebug("");
+}
+

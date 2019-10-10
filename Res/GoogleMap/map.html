@@ -1,0 +1,117 @@
+<html> 
+<head>
+<meta content="initial-scale=1.0, user-scalable=no" name="viewport" />
+<style type="text/css">
+	html { height: 100% } 
+	body { height: 100%; margin: 0px; padding: 0px }
+</style>
+<object id = "bada" type = "application/x-osp-jsbridge" width = "0" height = "0">
+</object>
+
+<!--  
+<script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?sensor=false"></script>
+-->
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+<script type="text/javascript"><!-- 
+
+var map; 
+var centerCoordinate = new google.maps.LatLng(37.5665, 126.9780); 
+var arrMarkers = [];
+
+function initialize() { 
+	var mapOptions = { 
+		zoom: 14, 
+		center: centerCoordinate, 
+		//mapTypeId: google.maps.MapTypeId.TERRAIN 
+		mapTypeId: google.maps.MapTypeId.ROADMAP 
+	}; 
+	map = new google.maps.Map ( document.getElementById("map_canvas"), mapOptions ); 
+	
+	// click 이벤트 리스너 등록 !
+	google.maps.event.addListener(map, 'click', function(event) {
+		addMarker(event.latLng);
+	});
+} 
+
+function addMarker(location, image_file) { 
+	var marker = new google.maps.Marker({ 
+		position: location,
+		draggable : true,
+		animation : google.maps.Animation.DROP,
+		icon : image_file,  
+		map: map
+		});
+	
+	arrMarkers.push(marker);
+	
+	google.maps.event.addListener(marker, "click",function(){
+		position = marker.getPosition();
+		var jsondata = {name:"MyJsBridge", data:position.toString()}; 
+		var jsonText = JSON.stringify(jsondata); 
+		bada.requestToNative(jsonText);
+    	
+	});   
+	
+	return marker;
+} 
+
+/**
+//API to get the geolocation 
+navigator.geolocation.getCurrentPosition( sucessCallback, errorCallback ); 
+
+function sucessCallback(position) { 
+	var currentLocation = new google.maps.LatLng ( position.coords.latitude, position.coords.longitude); 
+	map.setCenter(currentLocation); 
+	addMarker(currentLocation);
+} 
+
+function errorCallback() {
+	var defaultLocation = new google.maps.LatLng(37.5665, 126.9780); 
+	map.setCenter(defaultLocation); 
+	addMarker(defaultLocation);
+} 
+**/
+
+//This function is used to receive input from the bada application 
+function setMarker(latitude, longitude, icon_file) { 
+	var newMarker = new google.maps.LatLng(latitude, longitude); 
+	addMarker(newMarker, icon_file); 
+}
+
+function setMyLocation(latitude, longitude) {
+	var marker = setMarker(latitude, longitude, 'myLoc.png');
+	//var marker = setMarker(latitude, longitude);
+	//marker.setIcon('myLoc.png');
+	//marker.setTitle("I'm here!");
+	
+	var currentLocation = new google.maps.LatLng ( latitude, longitude); 
+	map.setCenter(currentLocation); 
+}
+
+//
+function showMarkers(show_hide) {
+	if (arrMarkers) {
+		for (i in arrMarkers) {
+			arrMarkers[i].setMap((show_hide ? map : null));
+		}
+	}
+}
+
+function deleteMarkers() {
+	if (arrMarkers) {
+		for (i in arrMarkers) {
+			arrMarkers[i].setMap(null);
+		}
+		
+		arrMarkers.length = 0;
+	}
+}
+
+
+    	  
+--></script>
+</head> 
+<body style="margin:0px; padding:0px;" onload="initialize()"> 
+<div id="map_canvas" style="width: 100%; height: 100%"></div>
+</body> 
+</html>

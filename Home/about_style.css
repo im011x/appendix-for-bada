@@ -1,0 +1,39 @@
+h2 {
+		font-size:x-large;
+	}
+
+h3 {
+		color:red;
+		font-size:large;
+	}
+
+dt {
+		color:red;
+		font-size:small;
+	}
+
+.light1 { 
+	background-color:#ffff00
+	}
+
+.light2 { 
+	background-color:#a5ffb6
+	}
+
+.extra {
+font-style: italic
+}
+
+.normal_text {
+		font-size:medium;
+	}
+
+
+.has_bg_1 {
+		background-color:#f1fcb1 ;
+		background-image:url("filename");
+		background-repeat:repeat-x;
+		background-attachment:fixed; 
+	}
+
+

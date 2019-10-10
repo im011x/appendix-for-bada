@@ -1,0 +1,101 @@
+/*
+ * FormAxBusStopLines.h
+ *
+ *  Created on: 2012. 7. 3.
+ *      Author: benny
+ */
+
+#ifndef FORMAXBUSSTOPSEARCHLIST_H_
+#define FORMAXBUSSTOPSEARCHLIST_H_
+
+#include "FormAxBus.h"
+#include "HttpBusSeoul.h"
+#include "XmlBusSeoul.h"
+#include "GroupBusLine.h"
+#include "DataBusSeoul.h"
+
+class FormAxBusStopLines
+	: public FormAxBus
+	, public IHttpFirstResponder
+	, public Osp::Ui::Controls::IGroupedListViewItemProvider
+	, public Osp::Ui::Controls::IGroupedListViewItemEventListener
+{
+public:
+	FormAxBusStopLines();
+	virtual ~FormAxBusStopLines();
+	virtual bool AtInitialize();
+	virtual void AtTimer(HandleTimer * pTimerHandler);
+
+// Implementation
+protected:
+	const static 	int 		ID_MESSAGEBOX_CONFIRM = 100;
+	const static 	int 		ID_MESSAGEBOX_NO_KEYWORD = 101;
+	const static 	int 		ID_MESSAGEBOX_NO_DATA = 102;
+	const static 	int 		ID_MESSAGEBOX_BAD_DATA = 103;
+
+	const static 	int 		ID_UPDATE_STOP_LINES = 110;
+	const static 	int 		ID_COMMAND_STOP_DETAIL = 111;
+
+	const 	static 	int 		ID_CONTEXT_MYBUS = 121;
+	const 	static 	int 		ID_CONTEXT_LINEINFO = 122;
+	const 	static 	int 		ID_CONTEXT_LINESTOPS = 123;
+	const 	static 	int 		ID_CONTEXT_LINEMAP = 124;
+
+	GroupedListView* 			__pListLines;
+	ArrayList * 				__pArrBusLines;
+	HttpBusSeoul * 				__pHttpSeoulBus;
+
+	MyLabel * 					__pLabelStopName;
+	MyLabel * 					__pLabelStopCode;
+	MyButton * 					__pBtnStopInfo;
+
+	XmlBusSeoulParseArrivesByStop 	__parser;
+
+	//
+	HashMap *					__pMapGroups;
+	ArrayList * 				__pArrGroups;
+
+	//
+	HandleTimer * 				__pTimerUpdateShow;
+	HandleTimer * 				__pTimerUpdateData;
+
+	int 						__nTimerCount;
+	ListContextItem *  			__pContextMenu;
+
+private:
+	bool 			__bFetchUpdate;
+
+protected:
+	void 	init();
+	void 	invokeQuery(bool update=false);
+	void 	makeGroups();
+	GroupBusLine * buildGroup(const String & key);
+
+	void 	doContextMenu(int command, BusSeoul_ArrivingInfo* pline);
+	void 	saveDb(BusSeoul_ArrivingInfo* pstop);
+
+public:
+	virtual result OnInitializing(void);
+	virtual result OnTerminating(void);
+	virtual void OnActionPerformed(const Osp::Ui::Control& source, int actionId);
+
+	// IHttpFirstResponder
+	virtual void 	OnGoodResponse(HandleHttp * pHttp, ByteBuffer* pBuffer);
+	virtual void 	OnBadResponse(HandleHttp * pHttp, const String & message);
+
+	// IGroupedListViewItemProvider
+	virtual int GetGroupCount(void);
+	virtual int GetItemCount(int groupIndex);
+	virtual Osp::Ui::Controls::GroupItem* CreateGroupItem(int groupIndex, int itemWidth);
+	virtual bool DeleteGroupItem(int groupIndex, Osp::Ui::Controls::GroupItem* pItem, int itemWidth);
+	virtual Osp::Ui::Controls::ListItemBase* CreateItem(int groupIndex, int itemIndex, int itemWidth);
+	virtual bool DeleteItem(int groupIndex, int itemIndex, Osp::Ui::Controls::ListItemBase* pItem, int itemWidth);
+
+	// IGroupedListViewItemEventListener
+	virtual void OnGroupedListViewContextItemStateChanged(Osp::Ui::Controls::GroupedListView &listView, int groupIndex, int itemIndex, int elementId, Osp::Ui::Controls::ListContextItemStatus state);
+	virtual void OnGroupedListViewItemStateChanged(Osp::Ui::Controls::GroupedListView &listView, int groupIndex, int itemIndex, int elementId, Osp::Ui::Controls::ListItemStatus state);
+	virtual void OnGroupedListViewItemSwept(Osp::Ui::Controls::GroupedListView &listView, int groupIndex,  int itemIndex, Osp::Ui::Controls::SweepDirection direction);
+
+};
+
+#endif /* FORMAXBUSSTOPSEARCHLIST_H_ */

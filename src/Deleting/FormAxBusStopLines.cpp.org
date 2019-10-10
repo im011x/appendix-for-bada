@@ -1,0 +1,435 @@
+/*
+ * FormAxBusStopLines.cpp
+ *
+ *  Created on: 2012. 7. 3.
+ *      Author: benny
+ */
+
+#include "FormAxBusStopLines.h"
+#include "FactoryListItem.h"
+#include "DatabaseBus.h"
+
+FormAxBusStopLines::FormAxBusStopLines() : __pListLines(null), __pArrBusLines(null), __pHttpSeoulBus(null), __pMapGroups(null), __pArrGroups(null)
+	, __pTimerUpdateShow(null), __pTimerUpdateData(null), __nTimerCount(0), __pContextMenu(null)
+
+{
+	__pLabelStopName = null;
+	__pLabelStopCode = null;
+	__pBtnStopInfo = null;
+
+	__bFetchUpdate = false;
+}
+
+FormAxBusStopLines::~FormAxBusStopLines()
+{
+}
+
+bool FormAxBusStopLines::AtInitialize()
+{
+	Form::Construct(FORM_STYLE_INDICATOR | FORM_STYLE_HEADER);
+
+	SetTitle("정류소 도착정보");
+	SetPanelStype(BOTTOM_PANEL);
+
+	SetPush(NO_PUSH);
+	SetRefreshButton(ID_UPDATE_STOP_LINES);
+
+	return true;
+}
+
+result FormAxBusStopLines::OnInitializing(void)
+{
+	result r = E_SUCCESS;
+
+	// TODO: Add your initialization code here
+	FormAxBus::OnInitializing();
+
+	Panel * bottomPanel = GetPanel();
+	Osp::Graphics::Dimension dimBottomSize = bottomPanel->GetSize();
+	int w = dimBottomSize.width - 20;
+	int y = 0;
+
+	__pBtnStopInfo = makeButtonPool(Rectangle(0,  0, dimBottomSize.width, 80), "bg/bg_434x80_arrow.png", "", "", bottomPanel, ID_COMMAND_STOP_DETAIL, this);
+	// overwrite !
+	__pLabelStopName = makeLabelText(Rectangle(10, y, w/2, 50), "정류소 명칭", bottomPanel, 40, Color::COLOR_BLACK, Color(0,0,0,0), ALIGNMENT_LEFT);
+	y += 50;
+	__pLabelStopCode = makeLabelText(Rectangle(10, y, w/2, 30), "정류소 코드", bottomPanel, 25, Color::COLOR_BLACK, Color(0,0,0,0), ALIGNMENT_LEFT);
+	y += 40;
+
+	// create list view
+	__pListLines = makeGroupedListView(Rectangle(0, y, dimBottomSize.width, dimBottomSize.height-y), this, this, this, true);
+
+	init();
+	invokeQuery();
+
+	return r;
+}
+
+void FormAxBusStopLines::init()
+{
+	if (__pArrBusLines == null) {
+		__pArrBusLines = new ArrayList();
+		__pArrBusLines->Construct();
+	}
+
+	if (__pHttpSeoulBus == null) {
+		__pHttpSeoulBus = new HttpBusSeoul(this);
+	}
+
+	if (__pMapGroups == null) {
+		__pMapGroups = new HashMap();
+		__pMapGroups->Construct();
+	}
+
+	if (__pArrGroups == null) {
+		__pArrGroups = new ArrayList();
+		__pArrGroups->Construct();
+	}
+
+	// 리스트 아이템을 옆으로 밀었을때 나타나는 context menu 생성한다.
+	BcContextItem * p1 = new BcContextItem("내 버스",   ID_CONTEXT_MYBUS);
+	BcContextItem * p2 = new BcContextItem("노선정보", ID_CONTEXT_LINEINFO);
+	BcContextItem * p3 = new BcContextItem("노선도", ID_CONTEXT_LINEINFO);
+	BcContextItem * p4 = new BcContextItem("노선지도", ID_CONTEXT_LINEMAP);
+
+	ArrayList * pArrMenu = new ArrayList();
+	pArrMenu->Construct();
+	pArrMenu->Add(*p1);
+	pArrMenu->Add(*p2);
+	pArrMenu->Add(*p3);
+	pArrMenu->Add(*p4);
+
+	//
+	__pContextMenu = makeContextMenu(pArrMenu);
+
+	pArrMenu->RemoveAll(true);
+	delete pArrMenu;
+
+}
+
+void FormAxBusStopLines::invokeQuery(bool update)
+{
+	String * pKey = GetStringByKey("정류소검색_키");
+	if (pKey == null) {
+		UtilMessageBox::ConfirmWithCallback("", "검색 키 값이 없습니다.", this, ID_MESSAGEBOX_NO_KEYWORD);
+		return;
+	}
+
+	if (__pHttpSeoulBus->GetArrivingByStop(*pKey))
+		commShow();
+
+	__nTimerCount = 0;
+}
+
+result FormAxBusStopLines::OnTerminating(void)
+{
+	if (__pHttpSeoulBus)
+		delete __pHttpSeoulBus;
+
+	if (__pArrBusLines) {
+		__pArrBusLines->RemoveAll(true);
+		delete __pArrBusLines;
+	}
+
+	if (__pMapGroups) {
+		__pMapGroups->RemoveAll(false);
+		delete __pMapGroups;
+	}
+
+	if (__pArrGroups) {
+		__pArrGroups->RemoveAll(false);
+		delete __pArrGroups;
+	}
+
+	if (__pContextMenu) {
+		delete __pContextMenu;
+	}
+
+	return FormAxBus::OnTerminating();
+}
+
+void FormAxBusStopLines::OnActionPerformed(const Osp::Ui::Control& source, int actionId)
+{
+	switch(actionId)
+	{
+	case ID_MESSAGEBOX_CONFIRM:
+		break;
+	case ID_UPDATE_STOP_LINES:
+		invokeQuery(true);
+		break;
+	case ID_MESSAGEBOX_NO_KEYWORD:
+		GotoBack();
+		break;
+	case ID_MESSAGEBOX_NO_DATA:
+		GotoBack();
+		break;
+	case ID_MESSAGEBOX_BAD_DATA:
+		GotoBack();
+		break;
+	case ID_COMMAND_STOP_DETAIL:
+		AppLogDebug("상세 정보를 확인합니다.");
+		break;
+	default:
+		FormAxBus::OnActionPerformed(source, actionId);
+		break;
+	}
+}
+
+void FormAxBusStopLines::makeGroups()
+{
+	if (__pArrBusLines == null) {
+		AppAssert(0);
+		return;
+	}
+
+	for (int i=0; i<__pArrBusLines->GetCount(); i++) {
+		BusSeoul_ArrivingInfo* pArrv = static_cast<BusSeoul_ArrivingInfo*> (__pArrBusLines->GetAt(i));
+		GroupBusLine * pGroup = buildGroup(pArrv->__routeType);
+		pGroup->pArr->Add(*pArrv);
+	}
+
+}
+
+GroupBusLine * FormAxBusStopLines::buildGroup(const String & key)
+{
+	bool bIsIn = false;
+	__pMapGroups->ContainsKey(key, bIsIn);
+
+	if (bIsIn) {  // exist already!
+		return static_cast<GroupBusLine*> (__pMapGroups->GetValue(key));
+	}
+
+	// make an instance of the key and make new one instance
+	String * pKey = new String(key);
+	GroupBusLine * pOneGroup = new GroupBusLine();
+	pOneGroup->SetName(key);
+
+	__pMapGroups->Add(*pKey, *pOneGroup);
+	__pArrGroups->Add(*pOneGroup);
+
+	return pOneGroup;
+}
+
+void FormAxBusStopLines::OnGoodResponse(HandleHttp * pHttp, ByteBuffer* pBuffer)
+{
+	//String invokedUri = pHttp->GetRequestedUrl();
+	//AppLogDebug("@@@ invoked Url = [%S]", invokedUri.GetPointer());
+
+	bool bOK = __parser.ParseXml(pBuffer, __pArrBusLines);
+
+	commHide();
+
+	if (__pArrBusLines->GetCount() <= 0) {
+		bOK = false;
+	}
+
+	if (bOK) {
+		if (__bFetchUpdate == false) {  // it's 1st fetching ...
+			CompareBusSeoul_Arrive * pCompare = new CompareBusSeoul_Arrive();
+			__pArrBusLines->Sort(*pCompare);
+			delete pCompare;
+
+			makeGroups();
+
+			BusSeoul_ArrivingInfo* pArrv0 = static_cast<BusSeoul_ArrivingInfo*> (__pArrBusLines->GetAt(0));
+			String sCode = pArrv0->__arsId;
+			if (sCode.GetLength() > 2) {
+				sCode.Insert('-', 2);
+			}
+			__pLabelStopName->SetText(pArrv0->__stNm);
+			__pLabelStopCode->SetText(sCode);
+
+			__pListLines->UpdateList();
+			__pListLines->ScrollToItem(0, -1);  // 왜 뜨자마자 마지막으로 가지 ?
+
+			this->RequestRedraw();
+
+			/*
+			if (__pTimerUpdateShow == null) {
+				__pTimerUpdateShow = CreateTimer(5, 0);
+			}
+			if (__pTimerUpdateData == null) {
+				__pTimerUpdateData = CreateTimer(30, 0);
+			}
+			 */
+
+			CreateTimer(3, 0);
+		}
+		//else {  // fetched for updating ...
+		//	__pListLines->UpdateList();
+		//}
+
+		__bFetchUpdate = true;  // for next time
+
+
+	}
+	else {
+		UtilMessageBox::ConfirmWithCallback("", __parser.GetMessage(), this, ID_MESSAGEBOX_NO_DATA);
+	}
+}
+
+void FormAxBusStopLines::OnBadResponse(HandleHttp * pHttp, const String & message)
+{
+	commHide();
+	UtilMessageBox::ConfirmWithCallback("", message, this, ID_MESSAGEBOX_BAD_DATA);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+int FormAxBusStopLines::GetGroupCount(void)
+{
+	if (__pArrBusLines == null)
+		return 0;
+
+	if (__pArrGroups == null)
+		return 0;
+
+	return __pArrGroups->GetCount();
+}
+
+int FormAxBusStopLines::GetItemCount(int groupIndex)
+{
+	if (__pArrBusLines == null)
+		return 0;
+
+	GroupBusLine * pGroup = static_cast<GroupBusLine*> (__pArrGroups->GetAt(groupIndex));
+	return pGroup->pArr->GetCount();
+
+}
+
+Osp::Ui::Controls::GroupItem* FormAxBusStopLines::CreateGroupItem(int groupIndex, int itemWidth)
+{
+	GroupItem* pItem = new GroupItem();
+	pItem->Construct(Dimension(itemWidth, 50));
+
+	GroupBusLine * pGroup = static_cast<GroupBusLine*> (__pArrGroups->GetAt(groupIndex));
+
+	String nameGroup;
+	nameGroup.Format(255, L"%S (%d 대)", pGroup->sName.GetPointer(), pGroup->pArr->GetCount());
+	pItem->SetElement(nameGroup, null);
+
+	return pItem;
+}
+
+bool FormAxBusStopLines::DeleteGroupItem(int groupIndex, Osp::Ui::Controls::GroupItem* pItem, int itemWidth)
+{
+	delete pItem;
+	pItem = null;
+	return true;
+}
+
+Osp::Ui::Controls::ListItemBase* FormAxBusStopLines::CreateItem(int groupIndex, int itemIndex, int itemWidth)
+{
+	GroupBusLine * pGroup = static_cast<GroupBusLine*> (__pArrGroups->GetAt(groupIndex));
+	BusSeoul_ArrivingInfo* p = static_cast<BusSeoul_ArrivingInfo*> (pGroup->pArr->GetAt(itemIndex));
+
+	//return FactoryListItem::makeListItem_StopArriveInfo(itemIndex, itemWidth,  p);
+	CustomItem * pItem = FactoryListItem::makeListItem_StopArriveInfo(itemIndex, itemWidth,  p);
+	pItem->SetContextItem(__pContextMenu);
+	return pItem;
+}
+
+bool FormAxBusStopLines::DeleteItem(int groupIndex, int itemIndex, Osp::Ui::Controls::ListItemBase* pItem, int itemWidth)
+{
+	delete pItem;
+	pItem = null;
+	return true;
+}
+
+
+void FormAxBusStopLines::OnGroupedListViewContextItemStateChanged(Osp::Ui::Controls::GroupedListView &listView, int groupIndex, int itemIndex, int elementId, Osp::Ui::Controls::ListContextItemStatus state)
+{
+	AppLogDebug("Grouped List element = %d and group/item = %d/%d", elementId, groupIndex, itemIndex);
+
+	GroupBusLine * pGroup = static_cast<GroupBusLine*> (__pArrGroups->GetAt(groupIndex));
+	BusSeoul_ArrivingInfo* pSelectedLine = static_cast<BusSeoul_ArrivingInfo*> (pGroup->pArr->GetAt(itemIndex));
+
+	doContextMenu(elementId, pSelectedLine);
+}
+
+void FormAxBusStopLines::OnGroupedListViewItemStateChanged(Osp::Ui::Controls::GroupedListView &listView, int groupIndex, int itemIndex, int elementId, Osp::Ui::Controls::ListItemStatus state)
+{
+	GroupBusLine * pGroup = static_cast<GroupBusLine*> (__pArrGroups->GetAt(groupIndex));
+	BusSeoul_ArrivingInfo* pSelectedLine = static_cast<BusSeoul_ArrivingInfo*> (pGroup->pArr->GetAt(itemIndex));
+
+	doContextMenu(ID_CONTEXT_LINESTOPS, pSelectedLine);
+}
+
+void FormAxBusStopLines::OnGroupedListViewItemSwept(Osp::Ui::Controls::GroupedListView &listView, int groupIndex,  int itemIndex, Osp::Ui::Controls::SweepDirection direction)
+{
+	AppLogDebug("");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//
+//
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FormAxBusStopLines::AtTimer(HandleTimer * pTimerHandler)
+{
+	/*
+	if (pTimerHandler == __pTimerUpdateShow) {
+		//AppLogDebug("will Update Show");
+		__pListLines->UpdateList();
+		__pListLines->RequestRedraw();
+	}
+	else {
+		//AppLogDebug("will invokeQuery(true)");
+		invokeQuery(true);
+	}
+	 */
+
+	__nTimerCount++;
+
+	//static int fireCouts[] = { 2, 5, 7 };
+
+	int hitCount = __nTimerCount % 10;
+	if (hitCount == 0) {
+		invokeQuery(true);
+	}
+	else {
+		//for (int i=0; i<3; i++) {
+			//if (hitCount == fireCouts[i]) {
+				__pListLines->UpdateList();
+				__pListLines->RequestRedraw();
+				//break;
+			//}
+		//}
+	}
+}
+
+void FormAxBusStopLines::doContextMenu(int command, BusSeoul_ArrivingInfo* pline)
+{
+	switch (command) {
+	case ID_CONTEXT_MYBUS:
+		saveDb(pline);
+		break;
+	case ID_CONTEXT_LINEINFO:
+		break;
+	case ID_CONTEXT_LINESTOPS:
+		SetKeyValue("노선정보_검색키", pline->__busRouteId);
+		SetKeyValue("노선정보_번호이름", pline->__rtNm);
+		GotoForm(FORM_ID_BUS_LINESTOPS);
+		break;
+	case ID_CONTEXT_LINEMAP:
+		break;
+	}
+}
+
+void FormAxBusStopLines::saveDb(BusSeoul_ArrivingInfo* parrivs)
+{
+	DatabaseBus db;
+
+	bool bOK = db.InsertMyBus(parrivs->__arsId, parrivs->__stNm, parrivs->__busRouteId, parrivs->__rtNm);
+
+	if (bOK)
+		UtilMessageBox::ConfirmWithCallback("", "내 버스 저장 성공", this, ID_MESSAGEBOX_CONFIRM);
+	else
+		UtilMessageBox::ConfirmWithCallback("", "내 버스 저장 실패", this, ID_MESSAGEBOX_CONFIRM);
+}
+

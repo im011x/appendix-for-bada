@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Application>
+    <Entry>Appendix</Entry>
+    <Name>
+        <English>Appendix</English>
+        <eng-GB>Appendix</eng-GB>
+        <kor-KR>바다 부록</kor-KR>
+    </Name>
+    <Vendor>com.butsoft</Vendor>
+    <Description>바다용 부록앱</Description>
+    <Icons>
+        <MainMenu>icon4.png<Type1/>
+            <Type2/>
+            <Type3>icon3.png</Type3>
+            <Type4>icon4.png</Type4>
+            <Type5>icon5.png</Type5>
+        </MainMenu>
+        <Setting/>
+        <Ticker/>
+        <QuickPanel/>
+        <LaunchImage>splash4.png<Type1/>
+            <Type2/>
+            <Type3>splash3.png</Type3>
+            <Type4>splash4.png</Type4>
+            <Type5>splash5.png</Type5>
+        </LaunchImage>
+    </Icons>
+    <AutoScaling>
+        <Enabled>false</Enabled>
+    </AutoScaling>
+</Application>
